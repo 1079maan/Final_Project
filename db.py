@@ -28,6 +28,7 @@ def _get_db_config() -> dict:
             "dbname":   secrets["dbname"],
             "user":     secrets["user"],
             "password": secrets["password"],
+            "sslmode":  "require",   # ← required for Supabase
         }
     except (KeyError, FileNotFoundError):
         pass
@@ -39,6 +40,7 @@ def _get_db_config() -> dict:
         "dbname":   os.getenv("PG_DB",       "postgres"),
         "user":     os.getenv("PG_USER",     "postgres"),
         "password": os.getenv("PG_PASSWORD", "Vaishnani@2728"),
+        "sslmode":  "require",       # ← required for Supabase
     }
 
 
