@@ -43,7 +43,7 @@ def _get_db_config() -> dict:
         "password": os.getenv("PG_PASSWORD", "Vaishnani@2728"),
         "sslmode":  "require",
     }
-
+# wsdsad
 
 # ── Connection pool ────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
