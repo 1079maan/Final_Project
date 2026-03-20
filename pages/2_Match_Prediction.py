@@ -70,20 +70,32 @@ def load_model():
             return joblib.load(path)
     return None
 
+# def build_input_df(team1, team2, venue, toss_winner, toss_decision):
+#     """
+#     Build the feature DataFrame. EDIT column names to match your training pipeline.
+#     """
+#     return pd.DataFrame({
+#         "team1":                [team1],
+#         "team2":                [team2],
+#         "venue":                [venue],
+#         "toss_winner":          [toss_winner],
+#         "toss_decision":        [toss_decision.lower()],
+#         "toss_winner_is_team1": [int(toss_winner == team1)],
+#         "decision_bat":         [int(toss_decision.lower() == "bat")],
+#     })
+
 def build_input_df(team1, team2, venue, toss_winner, toss_decision):
     """
-    Build the feature DataFrame. EDIT column names to match your training pipeline.
+    Build the feature DataFrame matching EXACTLY what the model was trained on.
+    Model expects: team1, team2, match_venue, toss_winner, toss_decision
     """
     return pd.DataFrame({
-        "team1":                [team1],
-        "team2":                [team2],
-        "venue":                [venue],
-        "toss_winner":          [toss_winner],
-        "toss_decision":        [toss_decision.lower()],
-        "toss_winner_is_team1": [int(toss_winner == team1)],
-        "decision_bat":         [int(toss_decision.lower() == "bat")],
+        "team1":          [team1],
+        "team2":          [team2],
+        "match_venue":    [venue],           # ✅ fixed: was "venue"
+        "toss_winner":    [toss_winner],
+        "toss_decision":  [toss_decision.lower()],
     })
-
 def get_prediction(model, df, team1, team2):
     if model is None:
         rng = np.random.default_rng(seed=abs(hash(team1 + team2)) % (2**31))
