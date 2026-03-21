@@ -125,6 +125,11 @@ CRITICAL DATA RULES — always check these in every query:
 2. over_number range is 1-20: powerplay = over_number <= 6, death = over_number >= 16
 3. player_of_match has format {"Name"}: always clean with REPLACE(REPLACE(player_of_match,'{"',''),'"}','')
 4. Use COUNT(*) FILTER (WHERE condition) for conditional counts in PostgreSQL
+5. ALL numeric columns are stored as TEXT in Supabase — ALWAYS cast them:
+   runs_batter::integer, runs_total::integer, over_number::integer
+   total_runs::integer, match_id::integer, season::integer
+   batter_id::integer, bowler_id::integer, player_id::integer
+   If you see SUM(column) without ::integer cast, ADD the cast.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON — no markdown, no code fences, no extra text:

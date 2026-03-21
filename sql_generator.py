@@ -67,10 +67,10 @@ CRITICAL DATA FACTS — memorise these, never break these rules:
    NEVER use:  WHERE is_wicket = TRUE  or  WHERE is_wicket = 1
 
 2. over_number column range is 1 to 20 (NOT 0 to 19):
-   - First 2 overs   → WHERE over_number <= 2
-   - Powerplay       → WHERE over_number <= 6
+   - First 2 overs   → WHERE over_number::integer <= 2
+   - Powerplay       → WHERE over_number::integer <= 6
    - Middle overs    → WHERE over_number BETWEEN 7 AND 15
-   - Death overs     → WHERE over_number >= 16
+   - Death overs     → WHERE over_number::integer >= 16
    NEVER use < 2 or < 6 or < 16 for over filters
 
 3. player_of_match column stores values like {{"SR Tendulkar"}} with curly braces.
@@ -103,7 +103,12 @@ RULES:
 - CRITICAL: Table names are case-sensitive in Supabase. ALWAYS use exactly:
   "Matches" (capital M) for matches table
   "Players" (capital P) for players table
-  deliveries, innings, player_teams → lowercase, no quotes needed"""
+  deliveries, innings, player_teams → lowercase, no quotes needed
+- CRITICAL: All numeric columns are stored as TEXT in Supabase. ALWAYS cast:
+  runs_batter::integer, runs_total::integer, over_number::integer
+  total_runs::integer, match_id::integer, season::integer
+  batter_id::integer, bowler_id::integer, player_id::integer
+  innings_number::integer, win_by_runs::numeric, win_by_wickets::numeric"""
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -288,9 +293,9 @@ FALLBACK_QUERIES = {
                 ROUND(100.0 * COUNT(*) FILTER (WHERE runs_batter = 6)
                       / NULLIF(COUNT(*), 0), 2)                                AS six_probability_pct
             FROM deliveries
-            WHERE over_number <= 2
-            GROUP BY over_number
-            ORDER BY over_number
+            WHERE over_number::integer <= 2
+            GROUP BY over_number::integer
+            ORDER BY over_number::integer
         """,
         "explanation": "Probability of hitting a six in overs 1 and 2. Calculated as (sixes ÷ total balls) × 100 per over.",
         "chart_type": "bar", "chart_x": "over_number", "chart_y": "six_probability_pct",
@@ -305,9 +310,9 @@ FALLBACK_QUERIES = {
                 ROUND(100.0 * COUNT(*) FILTER (WHERE is_wicket = 't')
                       / NULLIF(COUNT(*), 0), 2)                      AS wicket_probability_pct
             FROM deliveries
-            WHERE over_number <= 6
-            GROUP BY over_number
-            ORDER BY over_number
+            WHERE over_number::integer <= 6
+            GROUP BY over_number::integer
+            ORDER BY over_number::integer
         """,
         "explanation": "Probability of a wicket falling in each powerplay over (1-6).",
         "chart_type": "bar", "chart_x": "over_number", "chart_y": "wicket_probability_pct",
@@ -338,9 +343,9 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 m.match_venue                         AS venue,
-                ROUND(AVG(i.total_runs), 1)           AS avg_score,
+                ROUND(AVG(i.total_runs::integer), 1)           AS avg_score,
                 COUNT(*)                              AS matches,
-                MAX(i.total_runs)                     AS highest_score
+                MAX(i.total_runs::integer)                     AS highest_score
             FROM innings i
             JOIN "Matches" m ON i.match_id::integer = m.match_id::integer
             WHERE i.innings_number = 1
@@ -358,15 +363,15 @@ FALLBACK_QUERIES = {
             SELECT
                 over_number,
                 COUNT(*)                                              AS total_balls,
-                SUM(runs_total)                                       AS total_runs,
+                SUM(runs_total::integer)                                       AS total_runs,
                 COUNT(*) FILTER (WHERE runs_batter = 6)              AS sixes,
                 COUNT(*) FILTER (WHERE runs_batter = 4)              AS fours,
                 COUNT(*) FILTER (WHERE is_wicket = 't')              AS wickets,
-                ROUND(SUM(runs_total) * 6.0 / NULLIF(COUNT(*),0), 2) AS run_rate
+                ROUND(SUM(runs_total::integer) * 6.0 / NULLIF(COUNT(*),0), 2) AS run_rate
             FROM deliveries
-            WHERE over_number >= 16
-            GROUP BY over_number
-            ORDER BY over_number
+            WHERE over_number::integer >= 16
+            GROUP BY over_number::integer
+            ORDER BY over_number::integer
         """,
         "explanation": "Death overs (16-20) statistics — runs, sixes, fours, wickets and run rate per over.",
         "chart_type": "bar", "chart_x": "over_number", "chart_y": "run_rate",
@@ -377,15 +382,15 @@ FALLBACK_QUERIES = {
             SELECT
                 over_number,
                 COUNT(*)                                               AS total_balls,
-                SUM(runs_total)                                        AS total_runs,
+                SUM(runs_total::integer)                                        AS total_runs,
                 COUNT(*) FILTER (WHERE runs_batter = 6)               AS sixes,
                 COUNT(*) FILTER (WHERE runs_batter = 4)               AS fours,
                 COUNT(*) FILTER (WHERE is_wicket = 't')               AS wickets,
-                ROUND(SUM(runs_total) * 6.0 / NULLIF(COUNT(*), 0), 2) AS run_rate
+                ROUND(SUM(runs_total::integer) * 6.0 / NULLIF(COUNT(*), 0), 2) AS run_rate
             FROM deliveries
-            WHERE over_number <= 6
-            GROUP BY over_number
-            ORDER BY over_number
+            WHERE over_number::integer <= 6
+            GROUP BY over_number::integer
+            ORDER BY over_number::integer
         """,
         "explanation": "Powerplay (overs 1-6) statistics — runs, sixes, fours, wickets and run rate per over.",
         "chart_type": "bar", "chart_x": "over_number", "chart_y": "run_rate",
@@ -395,13 +400,13 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 over_number,
-                ROUND(SUM(runs_total) * 6.0 / NULLIF(COUNT(*), 0), 2)  AS run_rate,
+                ROUND(SUM(runs_total::integer) * 6.0 / NULLIF(COUNT(*), 0), 2)  AS run_rate,
                 COUNT(*) FILTER (WHERE runs_batter = 6)                 AS sixes,
                 ROUND(100.0 * COUNT(*) FILTER (WHERE runs_batter = 6)
                       / NULLIF(COUNT(*), 0), 2)                         AS six_pct
             FROM deliveries
-            GROUP BY over_number
-            ORDER BY over_number
+            GROUP BY over_number::integer
+            ORDER BY over_number::integer
         """,
         "explanation": "Run rate and six-hitting percentage across all 20 overs in IPL history.",
         "chart_type": "line", "chart_x": "over_number", "chart_y": "run_rate",
@@ -411,8 +416,8 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 COUNT(*)          AS super_over_matches,
-                MIN(season)       AS first_season,
-                MAX(season)       AS last_season
+                MIN(season::integer)       AS first_season,
+                MAX(season::integer)       AS last_season
             FROM "Matches"
             WHERE eliminator IS NOT NULL
               AND eliminator != ''
@@ -425,10 +430,10 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 CASE
-                    WHEN i.total_runs >= 200 THEN '200+'
-                    WHEN i.total_runs >= 180 THEN '180-199'
-                    WHEN i.total_runs >= 160 THEN '160-179'
-                    WHEN i.total_runs >= 140 THEN '140-159'
+                    WHEN i.total_runs::integer >= 200 THEN '200+'
+                    WHEN i.total_runs::integer >= 180 THEN '180-199'
+                    WHEN i.total_runs::integer >= 160 THEN '160-179'
+                    WHEN i.total_runs::integer >= 140 THEN '140-159'
                     ELSE 'Under 140'
                 END                                                    AS score_bracket,
                 COUNT(*)                                               AS matches,
@@ -441,7 +446,7 @@ FALLBACK_QUERIES = {
               AND m.winner IS NOT NULL
               AND m.result != 'no result'
             GROUP BY score_bracket
-            ORDER BY MIN(i.total_runs) DESC
+            ORDER BY MIN(i.total_runs::integer) DESC
         """,
         "explanation": "Win percentage for teams batting first based on their total score bracket.",
         "chart_type": "bar", "chart_x": "score_bracket", "chart_y": "win_pct",
@@ -451,15 +456,15 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 m.season,
-                ROUND(AVG(i.total_runs), 1)   AS avg_first_innings_score,
-                MAX(i.total_runs)              AS highest_score,
-                MIN(i.total_runs)              AS lowest_score,
+                ROUND(AVG(i.total_runs::integer), 1)   AS avg_first_innings_score,
+                MAX(i.total_runs::integer)              AS highest_score,
+                MIN(i.total_runs::integer)              AS lowest_score,
                 COUNT(*)                       AS matches
             FROM innings i
             JOIN "Matches" m ON i.match_id::integer = m.match_id::integer
             WHERE i.innings_number = 1
-            GROUP BY m.season
-            ORDER BY m.season
+            GROUP BY m.season::integer
+            ORDER BY m.season::integer
         """,
         "explanation": "Average first innings score per IPL season — shows how totals have grown over the years.",
         "chart_type": "line", "chart_x": "season", "chart_y": "avg_first_innings_score",
@@ -470,8 +475,8 @@ FALLBACK_QUERIES = {
             SELECT
                 p.player_name,
                 COUNT(*)                                               AS total_balls,
-                COUNT(*) FILTER (WHERE d.runs_total = 0)              AS dot_balls,
-                ROUND(100.0 * COUNT(*) FILTER (WHERE d.runs_total = 0)
+                COUNT(*) FILTER (WHERE d.runs_total::integer = 0)              AS dot_balls,
+                ROUND(100.0 * COUNT(*) FILTER (WHERE d.runs_total::integer = 0)
                       / NULLIF(COUNT(*), 0), 1)                        AS dot_ball_pct
             FROM deliveries d
             JOIN "Players" p ON d.bowler_id::integer = p.player_id::integer
@@ -489,9 +494,9 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 p.player_name,
-                SUM(d.runs_batter)            AS total_runs,
+                SUM(d.runs_batter::integer)            AS total_runs,
                 COUNT(DISTINCT d.match_id)    AS matches,
-                ROUND(SUM(d.runs_batter) * 100.0
+                ROUND(SUM(d.runs_batter::integer) * 100.0
                       / NULLIF(COUNT(*), 0), 2) AS strike_rate
             FROM deliveries d
             JOIN "Players" p ON d.batter_id::integer = p.player_id::integer
@@ -539,12 +544,12 @@ FALLBACK_QUERIES = {
     "runs per season": {
         "sql": """
             SELECT m.season,
-                   SUM(d.runs_total)          AS total_runs,
+                   SUM(d.runs_total::integer)          AS total_runs,
                    COUNT(DISTINCT d.match_id) AS matches
             FROM deliveries d
             JOIN "Matches" m ON d.match_id::integer = m.match_id::integer
-            GROUP BY m.season
-            ORDER BY m.season
+            GROUP BY m.season::integer
+            ORDER BY m.season::integer
         """,
         "explanation": "Total runs scored in each IPL season showing growth over the years.",
         "chart_type": "line", "chart_x": "season", "chart_y": "total_runs",
@@ -556,7 +561,7 @@ FALLBACK_QUERIES = {
                    i.total_runs, i.total_wickets, m.match_venue
             FROM innings i
             JOIN "Matches" m ON i.match_id::integer = m.match_id::integer
-            ORDER BY i.total_runs DESC
+            ORDER BY i.total_runs::integer DESC
             LIMIT 10
         """,
         "explanation": "Highest team innings totals ever recorded in IPL history.",
@@ -566,7 +571,7 @@ FALLBACK_QUERIES = {
     "six": {
         "sql": """
             SELECT p.player_name,
-                   COUNT(*) FILTER (WHERE d.runs_batter = 6) AS sixes
+                   COUNT(*) FILTER (WHERE d.runs_batter::integer = 6) AS sixes
             FROM deliveries d
             JOIN "Players" p ON d.batter_id::integer = p.player_id::integer
             GROUP BY p.player_name
@@ -580,7 +585,7 @@ FALLBACK_QUERIES = {
     "four": {
         "sql": """
             SELECT p.player_name,
-                   COUNT(*) FILTER (WHERE d.runs_batter = 4) AS fours
+                   COUNT(*) FILTER (WHERE d.runs_batter::integer = 4) AS fours
             FROM deliveries d
             JOIN "Players" p ON d.batter_id::integer = p.player_id::integer
             GROUP BY p.player_name
@@ -629,8 +634,8 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT season, COUNT(*) AS matches
             FROM "Matches"
-            GROUP BY season
-            ORDER BY season
+            GROUP BY season::integer
+            ORDER BY season::integer
         """,
         "explanation": "Total matches played in each IPL season from 2008 to 2025.",
         "chart_type": "bar", "chart_x": "season", "chart_y": "matches",
@@ -640,7 +645,7 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 p.player_name,
-                ROUND(SUM(d.runs_total) * 6.0 / NULLIF(COUNT(*), 0), 2) AS economy_rate,
+                ROUND(SUM(d.runs_total::integer) * 6.0 / NULLIF(COUNT(*), 0), 2) AS economy_rate,
                 COUNT(DISTINCT d.match_id)                                AS matches
             FROM deliveries d
             JOIN "Players" p ON d.bowler_id::integer = p.player_id::integer
@@ -657,12 +662,12 @@ FALLBACK_QUERIES = {
         "sql": """
             SELECT
                 p.player_name,
-                ROUND(SUM(d.runs_batter) * 100.0 / NULLIF(COUNT(*), 0), 2) AS strike_rate,
-                SUM(d.runs_batter)                                           AS total_runs
+                ROUND(SUM(d.runs_batter::integer) * 100.0 / NULLIF(COUNT(*), 0), 2) AS strike_rate,
+                SUM(d.runs_batter::integer)                                           AS total_runs
             FROM deliveries d
             JOIN "Players" p ON d.batter_id::integer = p.player_id::integer
             GROUP BY p.player_name
-            HAVING SUM(d.runs_batter) >= 500
+            HAVING SUM(d.runs_batter::integer) >= 500
             ORDER BY strike_rate DESC
             LIMIT 10
         """,

@@ -4,6 +4,10 @@ db.py — PostgreSQL connection for IPL NEXUS
 Credential priority:
   1. st.secrets  → Streamlit Cloud (production)
   2. os.getenv() → local environment variables
+
+FIX: Uses Transaction Pooler (port 6543) instead of Session Pooler
+     because psycopg2 prepared statements are NOT supported by Session Pooler.
+     Transaction Pooler supports all query types correctly.
 """
 
 import os
@@ -18,7 +22,9 @@ def _get_db_config() -> dict:
     """
     Load DB credentials from st.secrets (Streamlit Cloud)
     or fall back to environment variables.
-    Uses Session Pooler for Streamlit Cloud compatibility.
+
+    IMPORTANT: Uses Transaction Pooler (port 6543) for Supabase.
+    Session Pooler (port 5432) does NOT work with psycopg2.
     """
     # ── Priority 1: st.secrets (Streamlit Cloud) ──────────────────────────────
     try:
@@ -30,55 +36,43 @@ def _get_db_config() -> dict:
             "user":     secrets["user"],
             "password": secrets["password"],
             "sslmode":  "require",
+            "options":  "-c statement_cache_size=0",
         }
     except (KeyError, FileNotFoundError):
         pass
 
-    # ── Priority 2: Session Pooler fallback ───────────────────────────────────
+    # ── Priority 2: Transaction Pooler fallback ────────────────────────────────
     return {
         "host":     os.getenv("PG_HOST",     "aws-1-ap-south-1.pooler.supabase.com"),
-        "port":     int(os.getenv("PG_PORT", "5432")),
+        "port":     int(os.getenv("PG_PORT", "6543")),
         "dbname":   os.getenv("PG_DB",       "postgres"),
         "user":     os.getenv("PG_USER",     "postgres.qxgxodpethnqmwheyepq"),
         "password": os.getenv("PG_PASSWORD", "Vaishnani@2728"),
         "sslmode":  "require",
+        "options":  "-c statement_cache_size=0",
     }
 
 
-# ── Connection pool ────────────────────────────────────────────────────────────
+# ── Connection — NO pool for Supabase Transaction Pooler ──────────────────────
+# ThreadedConnectionPool does NOT work well with Transaction Pooler.
+# Use direct connection per query instead.
 @st.cache_resource(show_spinner=False)
-def get_pool():
-    """
-    Thread-safe PostgreSQL connection pool.
-    Cached once per session — no reconnect overhead.
-    """
-    try:
-        pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=5,
-            connect_timeout=10,
-            **_get_db_config(),       # ✅ uses correct function
-        )
-        return pool
-    except psycopg2.OperationalError:
-        return None
+def _get_config_cached():
+    """Cache the config so we don't re-read secrets every query."""
+    return _get_db_config()
 
 
 def run_query(sql: str) -> tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Execute a SQL SELECT query and return (DataFrame, error_string).
-    Exactly one of the two will always be None.
+    Uses a fresh connection per query — required for Transaction Pooler.
     """
-    pool = get_pool()
-    if pool is None:
-        return None, (
-            "Cannot connect to PostgreSQL. "
-            "Check your credentials in Streamlit Secrets."
-        )
-
     conn = None
     try:
-        conn = pool.getconn()
+        config = _get_config_cached()
+        conn = psycopg2.connect(**config)
+        conn.autocommit = True
+
         with conn.cursor() as cur:
             cur.execute(sql)
             if cur.description is None:
@@ -89,13 +83,19 @@ def run_query(sql: str) -> tuple[Optional[pd.DataFrame], Optional[str]]:
             for col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="ignore")
             return df, None
+
+    except psycopg2.OperationalError as e:
+        return None, f"Cannot connect to database: {str(e)}"
     except psycopg2.Error as e:
         return None, f"SQL Error: {e.pgerror or str(e)}"
     except Exception as e:
         return None, f"Unexpected error: {str(e)}"
     finally:
         if conn:
-            pool.putconn(conn)
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def test_connection() -> bool:
@@ -107,10 +107,9 @@ def test_connection() -> bool:
 # ── Schema context sent to Groq LLM ───────────────────────────────────────────
 SCHEMA_CONTEXT = """
 PostgreSQL database: postgres (Supabase)
-EXACT table names: "Matches" (capital M), "Players" (capital P), deliveries, innings, player_teams
-Tables and columns:
+EXACT table names (case-sensitive): "Matches" (capital M), "Players" (capital P), deliveries, innings, player_teams
 
-matches(
+"Matches"(
     match_id, season, match_date, match_city, match_venue,
     toss_winner, toss_decision, match_type,
     team1, team2, player_of_match, balls_per_over, overs,
@@ -133,17 +132,15 @@ deliveries(
     is_wicket, dismissal_type, player_out_id
 )
 
-players(player_id, player_name, registry_id)
+"Players"(player_id, player_name, registry_id)
 
 player_teams(player_id, team_name, season)
 
 Key relationships:
-- deliveries.batter_id     → players.player_id
-- deliveries.bowler_id     → players.player_id
-- deliveries.player_out_id → players.player_id
-- deliveries.match_id      → matches.match_id
-- innings.match_id         → matches.match_id
-- player_teams.player_id   → players.player_id
+- deliveries.batter_id     → "Players".player_id
+- deliveries.bowler_id     → "Players".player_id
+- deliveries.match_id      → "Matches".match_id
+- innings.match_id         → "Matches".match_id
 
 CRITICAL DATA FACTS:
 - is_wicket stores 't' or 'f' (STRING) — use WHERE is_wicket = 't'
