@@ -25,7 +25,7 @@ def _get_db_config() -> dict:
         secrets = st.secrets["postgres"]
         return {
             "host":     secrets["host"],
-            "port":     int(secrets.get("port", 5432)),
+            "port":     int(secrets.get("port", 6543)),
             "dbname":   secrets["dbname"],
             "user":     secrets["user"],
             "password": secrets["password"],
