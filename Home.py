@@ -83,7 +83,7 @@ with left:
     for num, text in [
         ("01","<b>Explore the Dashboard</b> — open IPL Dashboard to browse 17 seasons of Power BI analytics."),
         ("02","<b>Configure a Match</b> — go to Match Prediction, select teams, venue &amp; toss outcome."),
-        ("03","<b>Chat with the AI</b> — open AI Analytics Chat and ask any IPL question in plain English."),
+        ("03","<b>Chat with the AI</b> — Gemini AI Analytics Chat and ask any IPL question in plain English."),
         ("04","<b>Read the Docs</b> — visit About Project for the full data pipeline &amp; model architecture."),
     ]:
         st.markdown(f'<div class="step-block"><div class="step-num">{num}</div>'
@@ -93,8 +93,7 @@ with right:
     st.markdown('<div class="sec-label">Most Successful Teams</div>', unsafe_allow_html=True)
     for name, titles, color in [
         ("Mumbai Indians",5,"var(--orange)"),("Chennai Super Kings",5,"var(--orange)"),
-        ("Kolkata Knight Riders",3,"var(--cyan)"),("Sunrisers Hyderabad",2,"var(--cyan2)"),
-        ("Rajasthan Royals",2,"var(--cyan2)"),
+        ("Kolkata Knight Riders",3,"var(--cyan)"),
     ]:
         short = "".join(w[0] for w in name.split())
         st.markdown(f"""
