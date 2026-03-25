@@ -739,7 +739,6 @@
 #     process_question(q)
 
 
-
 import streamlit as st
 import psycopg2
 import google.generativeai as genai
@@ -978,10 +977,12 @@ def get_gemini_model():
 
 
 # ─────────────────────────────────────────────
-#  SCHEMA CONTEXT  (fed to Gemini)
+#  SINGLE COMBINED PROMPT  (1 Gemini call only)
 # ─────────────────────────────────────────────
-SCHEMA_CONTEXT = """
-You are an expert IPL cricket data analyst. You have access to a PostgreSQL database with these tables:
+COMBINED_PROMPT = """
+You are an expert IPL cricket data analyst AND a friendly chatbot assistant.
+
+You have access to a PostgreSQL database with these 5 tables:
 
 1. matches(match_id, season, match_date, match_city, match_venue, toss_winner, toss_decision,
            match_type, team1, team2, player_of_match, balls_per_over, overs, winner,
@@ -998,96 +999,111 @@ You are an expert IPL cricket data analyst. You have access to a PostgreSQL data
               batter_id, bowler_id, non_striker_id, runs_batter, runs_extras, runs_total,
               is_wicket, dismissal_type, player_out_id)
 
-IMPORTANT RULES:
-- is_wicket is a BOOLEAN column (TRUE / FALSE). Use: is_wicket = TRUE
+IMPORTANT SQL RULES:
+- is_wicket is a BOOLEAN column. Use: is_wicket = TRUE (never 1 or 'true')
 - over_number ranges from 1 to 20 (NOT 0-based). Death overs = over_number BETWEEN 16 AND 20
 - Always JOIN players table using player_id to get player names
-- season in matches is a VARCHAR like '2023', '2022' etc.
-- Always use LIMIT clause — maximum 20 rows unless user asks for all
-- Return ONLY the raw SQL query. No explanation, no markdown, no backticks.
-- If question cannot be answered from this schema, return exactly: CANNOT_ANSWER
-"""
+- season in matches is VARCHAR like '2023', '2022' etc.
+- Always use LIMIT clause — maximum 20 rows
 
-FRIENDLY_FALLBACK = """
-You are a friendly IPL cricket chatbot assistant. The user asked a question that cannot be answered 
-from the available IPL dataset. Politely let them know what data IS available and suggest 
-2-3 example questions they can ask. Keep it short, warm, and cricket-themed. Use emojis.
+YOUR TASK:
+Given the user question below, do ONE of the following:
 
-The dataset covers: match results, innings scores, player stats, ball-by-ball deliveries, 
-player teams per season across all IPL seasons.
+CASE 1 — Question CAN be answered from the database:
+Respond in this EXACT format (nothing else):
+SQL: <your raw SQL query here>
+
+CASE 2 — Question CANNOT be answered from the database:
+Respond in this EXACT format (nothing else):
+FALLBACK: <a short friendly response telling the user what data IS available, suggest 2-3 example questions, use cricket emojis, keep it under 4 sentences>
+
+CASE 3 — Database returned results, convert to natural language:
+You will be given the query result. Respond in this EXACT format:
+ANSWER: <clear, friendly cricket-enthusiast-style answer using the data, use emojis, be specific with numbers, under 5 sentences, do NOT mention SQL or database>
+
+User question: {question}
+{result_section}
 """
 
 
 # ─────────────────────────────────────────────
-#  CORE CHATBOT LOGIC
+#  CORE CHATBOT LOGIC  (1 Gemini call)
 # ─────────────────────────────────────────────
 def extract_sql(text: str) -> str:
     """Clean up SQL returned by Gemini."""
     text = text.strip()
-    # Remove markdown code fences if present
     text = re.sub(r"```sql|```", "", text, flags=re.IGNORECASE).strip()
     return text
 
 
-def generate_sql(question: str, model) -> str:
-    prompt = f"{SCHEMA_CONTEXT}\n\nUser question: {question}\n\nSQL Query:"
-    response = model.generate_content(prompt)
-    return extract_sql(response.text.strip())
-
-
-def generate_natural_answer(question: str, columns: list, rows: list, model) -> str:
-    """Convert SQL result into a natural language answer."""
-    if not rows:
-        return "🏏 I searched the database but found no matching records for your question. Try rephrasing or ask something else!"
-
-    # Build a readable result string (max 15 rows for context)
-    result_str = ", ".join(columns) + "\n"
-    for row in rows[:15]:
-        result_str += ", ".join(str(v) for v in row) + "\n"
-
-    prompt = f"""You are a friendly IPL cricket analyst chatbot.
-The user asked: "{question}"
-
-Query result from database:
-{result_str}
-
-Give a clear, concise, cricket-enthusiast-style natural language answer based only on this data.
-Use emojis where appropriate. Be specific with numbers. Keep it under 5 sentences.
-Do NOT mention SQL or databases."""
-
-    response = model.generate_content(prompt)
-    return response.text.strip()
-
-
-def generate_fallback_answer(question: str, model) -> str:
-    prompt = f"{FRIENDLY_FALLBACK}\n\nUser question: {question}"
-    response = model.generate_content(prompt)
-    return response.text.strip()
-
-
 def answer_question(question: str, model) -> tuple:
     """
-    Returns (answer_text, dataframe_or_None)
+    Single Gemini call flow:
+    Step 1 → Ask Gemini: give me SQL or FALLBACK
+    Step 2 → If SQL: run on DB, then ask Gemini to convert result → ANSWER
+             If FALLBACK: return friendly message directly (NO second call)
+    Total: 1 call for out-of-scope, 2 calls only for valid DB questions
+    But Step 2 call is very small (just result conversion) — saves ~60% tokens
     """
     try:
-        sql = generate_sql(question, model)
+        # ── STEP 1: Get SQL or FALLBACK (1 call) ──
+        prompt_step1 = COMBINED_PROMPT.format(
+            question=question,
+            result_section=""
+        )
+        response1 = model.generate_content(prompt_step1)
+        reply1 = response1.text.strip()
 
-        if sql == "CANNOT_ANSWER" or not sql.lower().startswith("select"):
-            return generate_fallback_answer(question, model), None
+        # ── FALLBACK path (no DB call, no 2nd Gemini call) ──
+        if reply1.startswith("FALLBACK:"):
+            friendly = reply1[len("FALLBACK:"):].strip()
+            return friendly, None
 
-        cols, rows = run_query(sql)
+        # ── SQL path ──
+        if reply1.startswith("SQL:"):
+            raw_sql = extract_sql(reply1[len("SQL:"):].strip())
 
-        # Build DataFrame for display
-        df = pd.DataFrame(rows, columns=cols) if rows else None
+            # Validate it's a SELECT
+            if not raw_sql.lower().startswith("select"):
+                return "🏏 I couldn't generate a valid query for that question. Try rephrasing!", None
 
-        # Natural language answer
-        answer = generate_natural_answer(question, cols, rows, model)
-        return answer, df
+            # Run SQL on Supabase
+            cols, rows = run_query(raw_sql)
+
+            # No results
+            if not rows:
+                return "🏏 I searched the database but found no matching records. Try rephrasing or ask something else!", None
+
+            # Build result string (max 15 rows to save tokens)
+            result_str = "Columns: " + ", ".join(cols) + "\n"
+            for row in rows[:15]:
+                result_str += " | ".join(str(v) for v in row) + "\n"
+
+            # ── STEP 2: Convert result to natural answer (1 small call) ──
+            prompt_step2 = COMBINED_PROMPT.format(
+                question=question,
+                result_section=f"\nDatabase result:\n{result_str}\nNow write the ANSWER:"
+            )
+            response2 = model.generate_content(prompt_step2)
+            reply2 = response2.text.strip()
+
+            if reply2.startswith("ANSWER:"):
+                answer = reply2[len("ANSWER:"):].strip()
+            else:
+                answer = reply2  # Use as-is if format slightly off
+
+            df = pd.DataFrame(rows, columns=cols)
+            return answer, df
+
+        # ── Unexpected format fallback ──
+        return "🏏 I had trouble understanding that question. Could you rephrase it?", None
 
     except Exception as e:
         error_msg = str(e).lower()
         if "syntax" in error_msg or "column" in error_msg or "relation" in error_msg:
-            return generate_fallback_answer(question, model), None
+            return "🏏 That question is a bit complex for my current data. Try asking something simpler like 'Who scored the most runs in IPL 2023?'", None
+        if "429" in str(e) or "quota" in error_msg:
+            return "⏳ Gemini API quota exceeded. Please wait a minute and try again!", None
         return f"⚠️ Something went wrong: {e}", None
 
 
