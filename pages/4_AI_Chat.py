@@ -974,7 +974,7 @@ def run_query(sql: str):
 @st.cache_resource
 def get_gemini_model():
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    return genai.GenerativeModel("gemini-1.5-flash")
+    return genai.GenerativeModel("gemini-2.0-flash")
 
 
 # ─────────────────────────────────────────────
