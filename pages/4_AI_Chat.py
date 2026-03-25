@@ -757,28 +757,6 @@ st.set_page_config(
     layout="wide",
 )
 
-
-st.set_page_config(page_title="IPL NEXUS · About", page_icon="◈", layout="wide")
-st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown(sidebar_html(), unsafe_allow_html=True)
-    sidebar_nav()
-
-# ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="neon-hero" style="border-left-color:var(--muted);">
-    <div class="hero-eyebrow" style="color:var(--muted2);">
-        <span style="background:var(--muted2);display:inline-block;width:20px;height:1px;"></span>
-        FINAL YEAR CAPSTONE PROJECT · DATA SCIENCE
-    </div>
-    <div class="hero-title">PROJECT  <span>ARCHITECTURE</span></div>
-    <div class="hero-sub">
-        It includes data processing, feature engineering, machine learning modeling, interactive dashboards, and deployment through a Streamlit web application.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # ─────────────────────────────────────────────
 #  NEON CYBERPUNK STYLES  (matches IPL NEXUS theme)
 # ─────────────────────────────────────────────
