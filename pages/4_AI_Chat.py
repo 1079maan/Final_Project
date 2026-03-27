@@ -744,6 +744,8 @@ from groq import Groq
 import re
 import pandas as pd
 
+from style import GLOBAL_CSS, sidebar_html, sidebar_nav
+
 # ─────────────────────────────────────────────
 #  PAGE CONFIG
 # ─────────────────────────────────────────────
@@ -753,6 +755,10 @@ st.set_page_config(
     layout="wide",
 )
 
+with st.sidebar:
+    st.markdown(sidebar_html(), unsafe_allow_html=True)
+    sidebar_nav()
+    
 # ─────────────────────────────────────────────
 #  NEON CYBERPUNK STYLES  (matches IPL NEXUS theme)
 # ─────────────────────────────────────────────
