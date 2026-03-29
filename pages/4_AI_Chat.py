@@ -743,6 +743,7 @@ import psycopg2
 from groq import Groq
 import re
 import pandas as pd
+from style import GLOBAL_CSS, sidebar_html, sidebar_nav
 
 # ─────────────────────────────────────────────
 #  PAGE CONFIG
@@ -752,6 +753,13 @@ st.set_page_config(
     page_icon="🏏",
     layout="wide",
 )
+
+st.set_page_config(page_title="IPL NEXUS · About", page_icon="◈", layout="wide")
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown(sidebar_html(), unsafe_allow_html=True)
+    sidebar_nav()
 
 # ─────────────────────────────────────────────
 #  NEON CYBERPUNK STYLES  (matches IPL NEXUS theme)
