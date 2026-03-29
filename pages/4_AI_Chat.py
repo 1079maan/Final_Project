@@ -738,14 +738,11 @@
 # if q := st.chat_input("Ask anything about IPL cricket…"):
 #     process_question(q)
 
-
 import streamlit as st
 import psycopg2
 from groq import Groq
 import re
 import pandas as pd
-
-from style import GLOBAL_CSS, sidebar_html, sidebar_nav
 
 # ─────────────────────────────────────────────
 #  PAGE CONFIG
@@ -755,14 +752,6 @@ st.set_page_config(
     page_icon="🏏",
     layout="wide",
 )
-
-st.set_page_config(page_title="IPL NEXUS · About", page_icon="◈", layout="wide")
-st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown(sidebar_html(), unsafe_allow_html=True)
-    sidebar_nav()
-
 
 # ─────────────────────────────────────────────
 #  NEON CYBERPUNK STYLES  (matches IPL NEXUS theme)
@@ -1005,23 +994,26 @@ You are an expert IPL cricket data analyst AND a friendly chatbot assistant.
 
 You have access to a PostgreSQL database with these 5 tables:
 
-1. public."Matches"(match_id, season, match_date, match_city, match_venue, toss_winner, toss_decision, match_type, team1, team2, player_of_match, balls_per_over, overs, winner, win_by_runs, win_by_wickets, result, eliminator, match_key)
+1. "Matches"(match_id, season, match_date, match_city, match_venue, toss_winner, toss_decision,
+           match_type, team1, team2, player_of_match, balls_per_over, overs, winner,
+           win_by_runs, win_by_wickets, result, eliminator, match_key)
 
-2. public."innings"(innings_id, match_id, innings_number, batting_team, bowling_team, total_runs, total_wickets, total_balls, total_overs, run_rate, target_runs, target_overs)
+2. "innings"(innings_id, match_id, innings_number, batting_team, bowling_team, total_runs,
+           total_wickets, total_balls, total_overs, run_rate, target_runs, target_overs)
 
-3. public."Players"(player_id, player_name, registry_id)
+3. "Players"(player_id, player_name, registry_id)
 
-4. public."player_teams"(player_id, team_name, season)
+4. "player_teams"(player_id, team_name, season)
 
-5. public."deliveries"(delivery_id, match_id, inning_number, over_number, ball_number, batter_id, bowler_id, non_striker_id, runs_batter, runs_extras, runs_total, is_wicket, dismissal_type, player_out_id)
+5. "deliveries"(delivery_id, match_id, inning_number, over_number, ball_number,
+              batter_id, bowler_id, non_striker_id, runs_batter, runs_extras, runs_total,
+              is_wicket, dismissal_type, player_out_id)
 
 IMPORTANT SQL RULES:
-- ALWAYS use exact table names with double quotes like "Matches", "Players"
-- Table names are case-sensitive in PostgreSQL
-- Use exactly: "Matches", "Players", "deliveries", "innings", "player_teams"
-- Always prefix with public schema like public."Matches", public."Players"
-- is_wicket is a BOOLEAN column. Use: is_wicket = TRUE
-- over_number ranges from 1 to 20. Death overs = over_number BETWEEN 16 AND 20
+- Table names are CASE-SENSITIVE. Always use double quotes: "Matches", "Players", "innings", "player_teams", "deliveries"
+- NEVER write matches or players without double quotes
+- is_wicket is a BOOLEAN column. Use: is_wicket = TRUE (never 1 or 'true')
+- over_number ranges from 1 to 20 (NOT 0-based). Death overs = over_number BETWEEN 16 AND 20
 - Always JOIN "Players" table using player_id to get player names
 - season in "Matches" is VARCHAR like '2023', '2022' etc.
 - Always use LIMIT clause — maximum 20 rows
@@ -1144,39 +1136,121 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Status badge + clear button
-col_status, col_clear = st.columns([6, 1])
-with col_status:
-    st.markdown('<div class="status-badge"><div class="dot"></div> LIVE · Dataset Connected</div>', unsafe_allow_html=True)
-with col_clear:
-    if st.button("🗑 Clear", key="clear_btn"):
+# Status badge only
+st.markdown('<div class="status-badge"><div class="dot"></div> LIVE · Dataset Connected</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="neon-divider"></div>', unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+#  FAQ QUESTIONS — Easy to Hard (15 questions)
+# ─────────────────────────────────────────────
+FAQ_QUESTIONS = {
+    "🟢 Easy": [
+        {"emoji": "🏆", "label": "IPL 2023 Winner",      "q": "Which team won IPL 2023?"},
+        {"emoji": "🔢", "label": "Matches in 2023",       "q": "How many total matches were played in IPL 2023?"},
+        {"emoji": "👥", "label": "Total Players",          "q": "How many players are registered in the IPL dataset?"},
+        {"emoji": "📍", "label": "Top Host City",          "q": "Which city hosted the most IPL matches?"},
+        {"emoji": "📅", "label": "Matches Per Season",     "q": "How many matches were played in each IPL season?"},
+    ],
+    "🟡 Medium": [
+        {"emoji": "🥇", "label": "Most Winning Team",     "q": "Which team won the most matches in IPL history?"},
+        {"emoji": "⭐", "label": "Player of Match",        "q": "Who won the most Player of the Match awards?"},
+        {"emoji": "💥", "label": "Highest Team Total",    "q": "What is the highest total runs scored by a team in a single innings?"},
+        {"emoji": "🏟️", "label": "Top Venue",              "q": "Which venue hosted the most IPL matches?"},
+        {"emoji": "🎯", "label": "Most Wickets Ever",     "q": "Which bowler took the most wickets across all IPL seasons?"},
+    ],
+    "🔴 Hard": [
+        {"emoji": "📊", "label": "Top 5 Run Scorers",     "q": "Who are the top 5 run scorers across all IPL seasons?"},
+        {"emoji": "6️⃣",  "label": "Sixes in IPL 2024",    "q": "How many sixes were hit in IPL 2024?"},
+        {"emoji": "🏏",  "label": "Batting First Wins",   "q": "How many matches were won by teams batting first across all seasons?"},
+        {"emoji": "🎳",  "label": "Best Season Wickets",  "q": "Who took the most wickets in a single IPL season?"},
+        {"emoji": "🔵",  "label": "MI Wins 2023",         "q": "How many matches did Mumbai Indians win in IPL 2023?"},
+    ],
+}
+
+# ─────────────────────────────────────────────
+#  SIDEBAR — FAQ + Clear Chat
+# ─────────────────────────────────────────────
+with st.sidebar:
+
+    # ── Sidebar Title ──
+    st.markdown("""
+    <div style="text-align:center;padding:0.5rem 0 1rem;">
+        <div style="font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;
+                    background:linear-gradient(90deg,#00f5ff,#ff6b35);
+                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                    letter-spacing:2px;">
+            🏏 IPL NEXUS
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:0.7rem;
+                    color:rgba(0,245,255,0.5);letter-spacing:1px;margin-top:0.2rem;">
+            AI CHAT ASSISTANT
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Divider ──
+    st.markdown('<hr style="border:none;height:1px;background:linear-gradient(90deg,transparent,#00f5ff,transparent);opacity:0.3;margin:0.2rem 0 1rem;">', unsafe_allow_html=True)
+
+    # ── FAQ Section ──
+    st.markdown("""
+    <div style="font-family:'Orbitron',monospace;font-size:0.65rem;font-weight:700;
+                letter-spacing:2px;text-transform:uppercase;
+                color:rgba(0,245,255,0.8);margin-bottom:0.8rem;">
+        ⚡ Quick Questions
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Render each level ──
+    level_colors = {
+        "🟢 Easy":   "#39ff14",
+        "🟡 Medium": "#ffd700",
+        "🔴 Hard":   "#ff6b35",
+    }
+    for level, faqs in FAQ_QUESTIONS.items():
+        color = level_colors[level]
+        st.markdown(
+            f'<div style="font-family:Rajdhani,sans-serif;font-size:0.72rem;'
+            f'font-weight:600;letter-spacing:1px;color:{color};'
+            f'margin:0.6rem 0 0.3rem;">{level}</div>',
+            unsafe_allow_html=True,
+        )
+        for idx, faq in enumerate(faqs):
+            if st.button(
+                f"{faq['emoji']}  {faq['label']}",
+                key=f"sidebar_faq_{level}_{idx}",
+                use_container_width=True,
+            ):
+                st.session_state.pending_question = faq["q"]
+
+    # ── Divider ──
+    st.markdown('<hr style="border:none;height:1px;background:linear-gradient(90deg,transparent,#00f5ff,transparent);opacity:0.3;margin:1rem 0;">', unsafe_allow_html=True)
+
+    # ── Clear Chat Button ──
+    if st.button("🗑️  Clear Chat History", key="sidebar_clear", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-st.markdown('<div class="neon-divider"></div>', unsafe_allow_html=True)
- 
-# ─────────────────────────────────────────────
-#  SUGGESTION CHIPS
-# ─────────────────────────────────────────────
-# suggestions = [
-#     "Most sixes in IPL 2024",
-#     "Top 5 run scorers overall",
-#     "Who won IPL 2023?",
-#     "Best bowling economy",
-#     "Highest team total ever",
-#     "Most Player of Match awards",
-# ]
-
-# st.markdown('<div class="chip-row">' +
-#     "".join(f'<span class="chip" onclick="void(0)">⚡ {s}</span>' for s in suggestions) +
-# '</div>', unsafe_allow_html=True)
-
-# Streamlit buttons for chips (functional)
-# chip_cols = st.columns(len(suggestions))
-# for i, sug in enumerate(suggestions):
-#     with chip_cols[i]:
-#         if st.button(sug, key=f"chip_{i}"):
-#             st.session_state.pending_question = sug
+    # ── System Info ──
+    st.markdown("""
+    <div style="margin-top:1rem;padding:0.7rem;
+                background:rgba(0,245,255,0.04);
+                border:1px solid rgba(0,245,255,0.15);
+                border-radius:8px;">
+        <div style="font-family:'Orbitron',monospace;font-size:0.58rem;
+                    letter-spacing:2px;text-transform:uppercase;
+                    color:rgba(0,245,255,0.5);margin-bottom:0.5rem;">
+            SYSTEM INFO
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:0.78rem;
+                    color:rgba(255,255,255,0.5);line-height:2;">
+            🤖 Groq · LLaMA3-70B<br>
+            🗄️ Supabase PostgreSQL<br>
+            ⚡ IPL 2008 – 2024<br>
+            📊 5 Tables · Live Data
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────
