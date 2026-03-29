@@ -1279,7 +1279,7 @@ I can answer questions about:
 🏟️ Venue &amp; season-wise records
 
 ⚡ <b>Quick Tip:</b> Click any question from the
-sidebar or type your own question below!
+sidebar to see how I analyze the database and generate insights!
         </div>
     </div>
     """, unsafe_allow_html=True)
