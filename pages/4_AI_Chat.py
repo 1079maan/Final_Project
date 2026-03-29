@@ -1283,14 +1283,14 @@ I can answer questions about:
 👥 Player teams per season
 🏟️ Venue & city statistics
 📅 Season-wise records & trends
-
-💡 Tips to get the best answers:
-- Ask specific questions like "IPL 2023" not just "IPL"
+                
+💡 Tips to get the best answers:                                            ⚡ Click any Quick Question from the sidebar
+- Ask specific questions like "IPL 2023" not just "IPL"                      or type your own question below!
 - Use player full names like "Virat Kohli"
 - Use team full names like "Mumbai Indians"
 
-⚡ Click any Quick Question from the sidebar
-   or type your own question below!
+# ⚡ Click any Quick Question from the sidebar
+#    or type your own question below!
 
 🟢 Easy → 🟡 Medium → 🔴 Hard
 Start with easy questions first!
