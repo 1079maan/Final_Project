@@ -1154,25 +1154,26 @@ st.markdown('<div class="neon-divider"></div>', unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 FAQ_QUESTIONS = {
     "🟢 Easy": [
-        {"emoji": "🏆", "label": "IPL 2023 Winner",      "q": "Which team won IPL 2023?"},
-        {"emoji": "🔢", "label": "Matches in 2023",       "q": "How many total matches were played in IPL 2023?"},
-        {"emoji": "👥", "label": "Total Players",          "q": "How many players are registered in the IPL dataset?"},
-        {"emoji": "📍", "label": "Top Host City",          "q": "Which city hosted the most IPL matches?"},
-        {"emoji": "📅", "label": "Matches Per Season",     "q": "How many matches were played in each IPL season?"},
+        {"emoji": "🏆", "label": "How many total matches were played in IPL history?"},
+        {"emoji": "🔢", "label": "Which team played the most matches in IPL?"},
+        {"emoji": "👥", "label": "How many seasons are there in the IPL dataset?"},
+        {"emoji": "📍", "label": "Which match venue is most popular in IPL?"},
+        {"emoji": "📅", "label": "How many total wickets fell in IPL 2023?"},
     ],
     "🟡 Medium": [
-        {"emoji": "🥇", "label": "Most Winning Team",     "q": "Which team won the most matches in IPL history?"},
-        {"emoji": "⭐", "label": "Player of Match",        "q": "Who won the most Player of the Match awards?"},
-        {"emoji": "💥", "label": "Highest Team Total",    "q": "What is the highest total runs scored by a team in a single innings?"},
-        {"emoji": "🏟️", "label": "Top Venue",              "q": "Which venue hosted the most IPL matches?"},
-        {"emoji": "🎯", "label": "Most Wickets Ever",     "q": "Which bowler took the most wickets across all IPL seasons?"},
+        {"emoji": "🥇", "label": "Which team won the most matches when batting first?"},
+        {"emoji": "⭐", "label": "How many matches did Mumbai Indians win in IPL 2023?"},
+        {"emoji": "💥", "label": "What is the highest total runs scored by a team in a single innings?"},
+        {"emoji": "🏟️", "label": "Which venue hosted the most IPL matches?"},
+        {"emoji": "🎯", "label": "Which team scored the highest total runs in a single IPL season?"},
+        {"emoji": "🎯", "label": "How many total extras were bowled in all IPL matches?"},
     ],
     "🔴 Hard": [
-        {"emoji": "📊", "label": "Top 5 Run Scorers",     "q": "Who are the top 5 run scorers across all IPL seasons?"},
-        {"emoji": "6️⃣",  "label": "Sixes in IPL 2024",    "q": "How many sixes were hit in IPL 2024?"},
-        {"emoji": "🏏",  "label": "Batting First Wins",   "q": "How many matches were won by teams batting first across all seasons?"},
-        {"emoji": "🎳",  "label": "Best Season Wickets",  "q": "Who took the most wickets in a single IPL season?"},
-        {"emoji": "🔵",  "label": "MI Wins 2023",         "q": "How many matches did Mumbai Indians win in IPL 2023?"},
+        {"emoji": "📊", "label": "Who are the top 5 run scorers across all IPL seasons?"},
+        {"emoji": "6️⃣", "label": "Which IPL team scored the most sixes across all seasons?"},
+        {"emoji": "🏏", "label": "How many matches were won by teams batting first across all seasons?"},
+        {"emoji": "🎳", "label": "Which team has the highest win percentage across all IPL seasons?"},
+        {"emoji": "🔵", "label": "most 2 player played for the most different teams across all IPL seasons?"},
     ],
 }
 
